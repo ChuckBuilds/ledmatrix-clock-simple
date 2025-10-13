@@ -4,7 +4,7 @@
   "properties": {
     "enabled": {
       "type": "boolean",
-      "default": true,
+      "default": false,
       "description": "Enable or disable the clock plugin"
     },
     "timezone": {
@@ -12,11 +12,17 @@
       "default": "UTC",
       "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London')"
     },
-    "time_format": {
+    "format": {
       "type": "string",
-      "enum": ["12h", "24h"],
-      "default": "12h",
-      "description": "Time format to display"
+      "default": "%I:%M %p",
+      "description": "Time format string (strftime format)"
+    },
+    "update_interval": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 60,
+      "description": "Update interval in seconds"
     },
     "show_seconds": {
       "type": "boolean",
