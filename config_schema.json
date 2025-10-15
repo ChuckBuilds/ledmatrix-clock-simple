@@ -82,20 +82,15 @@
       "minimum": 1,
       "description": "How long to display the clock in seconds"
     },
-    "position": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "type": "integer",
-          "default": 0,
-          "description": "X position for clock display"
-        },
-        "y": {
-          "type": "integer",
-          "default": 0,
-          "description": "Y position for clock display"
-        }
-      }
+    "position_x": {
+      "type": "integer",
+      "default": 0,
+      "description": "X position for clock display"
+    },
+    "position_y": {
+      "type": "integer",
+      "default": 0,
+      "description": "Y position for clock display"
     }
   },
   "required": ["enabled"]
