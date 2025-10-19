@@ -1,6 +1,7 @@
 {
   "id": "clock-simple",
   "name": "Simple Clock",
+  "version": "1.0.1",
   "author": "ChuckBuilds",
   "description": "A simple clock display with current time and date",
   "category": "time",
