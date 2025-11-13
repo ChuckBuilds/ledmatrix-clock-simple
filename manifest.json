@@ -10,6 +10,8 @@
     "time",
     "date"
   ],
+  "entry_point": "manager.py",
+  "class_name": "SimpleClock",
   "display_modes": [
     "clock-simple"
   ],

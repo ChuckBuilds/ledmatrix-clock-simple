@@ -215,6 +215,11 @@ class SimpleClock(BasePlugin):
             force_clear: If True, clear display before rendering
         """
         try:
+            # Ensure update() has been called at least once
+            if not hasattr(self, 'current_time'):
+                self.logger.warning("Clock display called before update() - calling update() now")
+                self.update()
+
             if force_clear:
                 self.display_manager.clear()
 
@@ -222,9 +227,15 @@ class SimpleClock(BasePlugin):
             width = self.display_manager.width
             height = self.display_manager.height
 
-            # Center the clock display
-            center_x = width // 2
-            center_y = height // 2
+            # Use configured position if set, otherwise center
+            if self.pos_x != 0 or self.pos_y != 0:
+                # Use configured position
+                center_x = self.pos_x
+                center_y = self.pos_y
+            else:
+                # Center the clock display
+                center_x = width // 2
+                center_y = height // 2
 
             # Get fonts from font manager
             time_font = None
