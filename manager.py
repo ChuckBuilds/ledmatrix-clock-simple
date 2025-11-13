@@ -68,50 +68,9 @@ class SimpleClock(BasePlugin):
         self.last_time_str = None
         self.last_ampm_str = None
         self.last_date_str = None
+        self.last_weekday_str = None
 
         self.logger.info(f"Clock plugin initialized for timezone: {self.timezone_str}")
-
-        # Register fonts
-        self._register_fonts()
-
-    def _register_fonts(self):
-        """Register fonts with the font manager."""
-        try:
-            if not hasattr(self.plugin_manager, 'font_manager'):
-                return
-
-            font_manager = self.plugin_manager.font_manager
-
-            # Time font
-            font_manager.register_manager_font(
-                manager_id=self.plugin_id,
-                element_key=f"{self.plugin_id}.time",
-                family="press_start",
-                size_px=12,
-                color=self.time_color
-            )
-
-            # Date font
-            font_manager.register_manager_font(
-                manager_id=self.plugin_id,
-                element_key=f"{self.plugin_id}.date",
-                family="press_start",
-                size_px=8,
-                color=self.date_color
-            )
-
-            # AM/PM font
-            font_manager.register_manager_font(
-                manager_id=self.plugin_id,
-                element_key=f"{self.plugin_id}.ampm",
-                family="press_start",
-                size_px=8,
-                color=self.ampm_color
-            )
-
-            self.logger.info("Clock fonts registered")
-        except Exception as e:
-            self.logger.warning(f"Error registering fonts: {e}")
 
     def _get_global_timezone(self) -> str:
         """Get the global timezone from the main config."""
@@ -159,6 +118,14 @@ class SimpleClock(BasePlugin):
             time_str += dt.strftime(":%S")
         return time_str
 
+    def _get_ordinal_suffix(self, day: int) -> str:
+        """Get the ordinal suffix for a day number (1st, 2nd, 3rd, etc.)."""
+        if 10 <= day % 100 <= 20:
+            suffix = 'th'
+        else:
+            suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+        return suffix
+
     def _format_date(self, dt: datetime) -> str:
         """Format date according to configured format."""
         if self.date_format == "MM/DD/YYYY":
@@ -167,6 +134,10 @@ class SimpleClock(BasePlugin):
             return dt.strftime("%d/%m/%Y")
         elif self.date_format == "YYYY-MM-DD":
             return dt.strftime("%Y-%m-%d")
+        elif self.date_format == "OLD_CLOCK":
+            # Match old clock format: "Month Day" with ordinal suffix
+            day_suffix = self._get_ordinal_suffix(dt.day)
+            return dt.strftime(f'%B %d{day_suffix}')
         else:
             return dt.strftime("%m/%d/%Y")  # fallback
 
@@ -206,6 +177,8 @@ class SimpleClock(BasePlugin):
 
             if self.show_date:
                 self.current_date = self._format_date(local_time)
+                # Also get weekday for old clock layout
+                self.current_weekday = local_time.strftime('%A')
 
             self.last_update = time.time()
 
@@ -232,6 +205,7 @@ class SimpleClock(BasePlugin):
             current_time_str = getattr(self, 'current_time', '')
             current_ampm_str = getattr(self, 'current_ampm', '') if self.time_format == "12h" else ''
             current_date_str = getattr(self, 'current_date', '') if self.show_date else ''
+            current_weekday_str = getattr(self, 'current_weekday', '') if (self.show_date and self.date_format == "OLD_CLOCK") else ''
             
             # Build comparison string that includes time and AM/PM (if applicable)
             current_display_str = f"{current_time_str} {current_ampm_str}".strip()
@@ -240,7 +214,8 @@ class SimpleClock(BasePlugin):
             # Only redraw if time/date changed or force_clear is True
             if not force_clear:
                 if (current_display_str == last_display_str and 
-                    current_date_str == self.last_date_str):
+                    current_date_str == self.last_date_str and
+                    current_weekday_str == getattr(self, 'last_weekday_str', '')):
                     # Time hasn't changed, skip redraw
                     return
             
@@ -252,100 +227,52 @@ class SimpleClock(BasePlugin):
             width = self.display_manager.width
             height = self.display_manager.height
 
-            # Use configured position if set, otherwise center
-            if self.pos_x != 0 or self.pos_y != 0:
-                # Use configured position
-                center_x = self.pos_x
-                center_y = self.pos_y
-            else:
-                # Center the clock display
-                center_x = width // 2
-                center_y = height // 2
+            # Match old clock layout: time at top, date at bottom
+            # Time at y=4 (near top, centered)
+            self.display_manager.draw_text(
+                self.current_time,
+                y=4,
+                color=self.time_color,
+                small_font=True
+            )
 
-            # Get fonts from font manager
-            time_font = None
-            date_font = None
-            ampm_font = None
-
-            try:
-                if hasattr(self.plugin_manager, 'font_manager'):
-                    font_manager = self.plugin_manager.font_manager
-                    # Use resolve_font with the same parameters used during registration
-                    time_font = font_manager.resolve_font(
-                        element_key=f"{self.plugin_id}.time",
-                        family="press_start",
-                        size_px=12,
-                        plugin_id=self.plugin_id
-                    )
-                    date_font = font_manager.resolve_font(
-                        element_key=f"{self.plugin_id}.date",
-                        family="press_start",
-                        size_px=8,
-                        plugin_id=self.plugin_id
-                    )
-                    ampm_font = font_manager.resolve_font(
-                        element_key=f"{self.plugin_id}.ampm",
-                        family="press_start",
-                        size_px=8,
-                        plugin_id=self.plugin_id
-                    )
-            except Exception as e:
-                self.logger.warning(f"Error getting fonts from font manager: {e}")
-
-            # Display time (centered)
-            if time_font:
-                self.display_manager.draw_text(
-                    self.current_time,
-                    x=center_x,
-                    y=center_y - 8,
-                    font=time_font,
-                    centered=True
-                )
-            else:
-                self.display_manager.draw_text(
-                    self.current_time,
-                    x=center_x,
-                    y=center_y - 8,
-                    color=self.time_color,
-                    centered=True
-                )
-
-            # Display AM/PM indicator (12h format only)
+            # Display AM/PM indicator (12h format only) - positioned next to time
             if self.time_format == "12h" and hasattr(self, 'current_ampm'):
-                if ampm_font:
-                    self.display_manager.draw_text(
-                        self.current_ampm,
-                        x=center_x + 40,  # Position to the right of time
-                        y=center_y - 8,
-                        font=ampm_font,
-                        centered=False
-                    )
-                else:
-                    self.display_manager.draw_text(
-                        self.current_ampm,
-                        x=center_x + 40,  # Position to the right of time
-                        y=center_y - 8,
-                        color=self.ampm_color,
-                        centered=False
-                    )
+                # Calculate AM/PM position: to the right of centered time
+                time_width = self.display_manager.get_text_width(self.current_time, self.display_manager.small_font)
+                ampm_x = (width + time_width) // 2 + 4
+                self.display_manager.draw_text(
+                    self.current_ampm,
+                    x=ampm_x,
+                    y=4,  # Align with time
+                    color=self.ampm_color,
+                    small_font=True
+                )
 
-            # Display date (below time, if enabled)
+            # Display date (at bottom, if enabled) - match old clock layout
             if self.show_date and hasattr(self, 'current_date'):
-                if date_font:
+                # Weekday on first line (if using old clock format)
+                if self.date_format == "OLD_CLOCK" and hasattr(self, 'current_weekday'):
+                    self.display_manager.draw_text(
+                        self.current_weekday,
+                        y=height - 18,  # First line of date
+                        color=self.date_color,
+                        small_font=True
+                    )
+                    # Month and day on second line
                     self.display_manager.draw_text(
                         self.current_date,
-                        x=center_x,
-                        y=center_y + 8,
-                        font=date_font,
-                        centered=True
+                        y=height - 9,  # Second line of date
+                        color=self.date_color,
+                        small_font=True
                     )
                 else:
+                    # Other date formats: single line centered at bottom
                     self.display_manager.draw_text(
                         self.current_date,
-                        x=center_x,
-                        y=center_y + 8,
+                        y=height - 9,
                         color=self.date_color,
-                        centered=True
+                        small_font=True
                     )
 
             # Update the physical display
@@ -356,6 +283,8 @@ class SimpleClock(BasePlugin):
             if self.time_format == "12h":
                 self.last_ampm_str = current_ampm_str
             self.last_date_str = current_date_str
+            if self.show_date and self.date_format == "OLD_CLOCK":
+                self.last_weekday_str = current_weekday_str
             
             self.logger.debug(f"Clock displayed: {current_display_str} {current_date_str}")
 
@@ -399,7 +328,7 @@ class SimpleClock(BasePlugin):
             return False
 
         # Validate date format
-        if self.date_format not in ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"]:
+        if self.date_format not in ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "OLD_CLOCK"]:
             self.logger.error(f"Invalid date format: {self.date_format}")
             return False
 

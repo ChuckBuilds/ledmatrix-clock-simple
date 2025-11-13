@@ -37,9 +37,9 @@
     },
     "date_format": {
       "type": "string",
-      "enum": ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"],
-      "default": "MM/DD/YYYY",
-      "description": "Date format to display"
+      "enum": ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "OLD_CLOCK"],
+      "default": "OLD_CLOCK",
+      "description": "Date format to display. OLD_CLOCK matches the original clock layout with weekday and month/day with ordinal suffix"
     },
     "time_color": {
       "type": "array",
