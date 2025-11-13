@@ -48,10 +48,14 @@ class SimpleClock(BasePlugin):
         self.show_date = config.get('show_date', True)
         self.date_format = config.get('date_format', 'MM/DD/YYYY')
 
-        # Colors
-        self.time_color = tuple(config.get('time_color', [255, 255, 255]))
-        self.date_color = tuple(config.get('date_color', [255, 128, 64]))
-        self.ampm_color = tuple(config.get('ampm_color', [255, 255, 128]))
+        # Colors - convert to integers in case they come from JSON as strings
+        time_color_raw = config.get('time_color', [255, 255, 255])
+        date_color_raw = config.get('date_color', [255, 128, 64])
+        ampm_color_raw = config.get('ampm_color', [255, 255, 128])
+        
+        self.time_color = tuple(int(c) for c in time_color_raw)
+        self.date_color = tuple(int(c) for c in date_color_raw)
+        self.ampm_color = tuple(int(c) for c in ampm_color_raw)
 
         # Position - use flattened keys
         self.pos_x = config.get('position_x', 0)
@@ -363,8 +367,14 @@ class SimpleClock(BasePlugin):
             if not isinstance(color_value, tuple) or len(color_value) != 3:
                 self.logger.error(f"Invalid {color_name}: must be RGB tuple")
                 return False
-            if not all(0 <= c <= 255 for c in color_value):
-                self.logger.error(f"Invalid {color_name}: values must be 0-255")
+            try:
+                # Convert to integers and validate range
+                color_ints = [int(c) for c in color_value]
+                if not all(0 <= c <= 255 for c in color_ints):
+                    self.logger.error(f"Invalid {color_name}: values must be 0-255")
+                    return False
+            except (ValueError, TypeError):
+                self.logger.error(f"Invalid {color_name}: values must be numeric")
                 return False
 
         return True
