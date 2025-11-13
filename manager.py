@@ -249,9 +249,25 @@ class SimpleClock(BasePlugin):
             try:
                 if hasattr(self.plugin_manager, 'font_manager'):
                     font_manager = self.plugin_manager.font_manager
-                    time_font = font_manager.get_font(f"{self.plugin_id}.time")
-                    date_font = font_manager.get_font(f"{self.plugin_id}.date")
-                    ampm_font = font_manager.get_font(f"{self.plugin_id}.ampm")
+                    # Use resolve_font with the same parameters used during registration
+                    time_font = font_manager.resolve_font(
+                        element_key=f"{self.plugin_id}.time",
+                        family="press_start",
+                        size_px=12,
+                        plugin_id=self.plugin_id
+                    )
+                    date_font = font_manager.resolve_font(
+                        element_key=f"{self.plugin_id}.date",
+                        family="press_start",
+                        size_px=8,
+                        plugin_id=self.plugin_id
+                    )
+                    ampm_font = font_manager.resolve_font(
+                        element_key=f"{self.plugin_id}.ampm",
+                        family="press_start",
+                        size_px=8,
+                        plugin_id=self.plugin_id
+                    )
             except Exception as e:
                 self.logger.warning(f"Error getting fonts from font manager: {e}")
 
