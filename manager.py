@@ -219,6 +219,8 @@ class SimpleClock(BasePlugin):
             force_clear: If True, clear display before rendering
         """
         try:
+            self.logger.info(f"Clock display() called with force_clear={force_clear}")
+            
             # Ensure update() has been called at least once
             if not hasattr(self, 'current_time'):
                 self.logger.warning("Clock display called before update() - calling update() now")
@@ -328,10 +330,12 @@ class SimpleClock(BasePlugin):
                     )
 
             # Update the physical display
+            self.logger.debug(f"Calling update_display() - time: {getattr(self, 'current_time', 'N/A')}, date: {getattr(self, 'current_date', 'N/A')}")
             self.display_manager.update_display()
+            self.logger.info(f"Clock displayed successfully: {getattr(self, 'current_time', 'N/A')}")
 
         except Exception as e:
-            self.logger.error(f"Error displaying clock: {e}")
+            self.logger.error(f"Error displaying clock: {e}", exc_info=True)
             # Show error message on display
             try:
                 self.display_manager.clear()
