@@ -66,6 +66,7 @@ class SimpleClock(BasePlugin):
 
         # Track last display for optimization
         self.last_time_str = None
+        self.last_ampm_str = None
         self.last_date_str = None
 
         self.logger.info(f"Clock plugin initialized for timezone: {self.timezone_str}")
@@ -219,13 +220,31 @@ class SimpleClock(BasePlugin):
             force_clear: If True, clear display before rendering
         """
         try:
-            self.logger.info(f"Clock display() called with force_clear={force_clear}")
-            
             # Ensure update() has been called at least once
             if not hasattr(self, 'current_time'):
                 self.logger.warning("Clock display called before update() - calling update() now")
                 self.update()
-
+            else:
+                # Update time to check if it has changed
+                self.update()
+            
+            # Check if time/date has changed since last display
+            current_time_str = getattr(self, 'current_time', '')
+            current_ampm_str = getattr(self, 'current_ampm', '') if self.time_format == "12h" else ''
+            current_date_str = getattr(self, 'current_date', '') if self.show_date else ''
+            
+            # Build comparison string that includes time and AM/PM (if applicable)
+            current_display_str = f"{current_time_str} {current_ampm_str}".strip()
+            last_display_str = f"{self.last_time_str} {getattr(self, 'last_ampm_str', '')}".strip() if self.last_time_str else ''
+            
+            # Only redraw if time/date changed or force_clear is True
+            if not force_clear:
+                if (current_display_str == last_display_str and 
+                    current_date_str == self.last_date_str):
+                    # Time hasn't changed, skip redraw
+                    return
+            
+            # Time has changed or force_clear is True, proceed with display
             if force_clear:
                 self.display_manager.clear()
 
@@ -330,9 +349,15 @@ class SimpleClock(BasePlugin):
                     )
 
             # Update the physical display
-            self.logger.debug(f"Calling update_display() - time: {getattr(self, 'current_time', 'N/A')}, date: {getattr(self, 'current_date', 'N/A')}")
             self.display_manager.update_display()
-            self.logger.info(f"Clock displayed successfully: {getattr(self, 'current_time', 'N/A')}")
+            
+            # Track what we just displayed
+            self.last_time_str = current_time_str
+            if self.time_format == "12h":
+                self.last_ampm_str = current_ampm_str
+            self.last_date_str = current_date_str
+            
+            self.logger.debug(f"Clock displayed: {current_display_str} {current_date_str}")
 
         except Exception as e:
             self.logger.error(f"Error displaying clock: {e}", exc_info=True)
