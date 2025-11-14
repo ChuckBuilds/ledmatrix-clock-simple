@@ -227,35 +227,36 @@ class SimpleClock(BasePlugin):
             width = self.display_manager.width
             height = self.display_manager.height
 
-            # Match old clock layout: time at top, date at bottom
-            # Time at y=4 (near top, centered) - use larger font for time
-            try:
-                from PIL import ImageFont
-                # Use larger font for time (size 10) to make it more prominent
-                time_font = ImageFont.truetype("assets/fonts/PressStart2P-Regular.ttf", 10)
-            except:
-                # Fallback to regular font if larger font fails
-                time_font = self.display_manager.regular_font
-            
+            # Match old clock layout exactly: time at top, date at bottom
+            # Time at y=4 (near top, centered) - try using regular font (not small_font)
+            # Old clock code shows small_font=True but comment says "large", so try regular font
             self.display_manager.draw_text(
                 self.current_time,
-                y=4,
+                y=4,  # Move up slightly to make room for two lines of date
                 color=self.time_color,
-                font=time_font  # Use larger font for time
+                small_font=False  # Use regular font - might render differently even at same size
             )
 
             # Display AM/PM indicator (12h format only) - positioned next to time
             if self.time_format == "12h" and hasattr(self, 'current_ampm'):
                 # Calculate AM/PM position: to the right of centered time
-                # Use same font as time for proper alignment
-                time_width = self.display_manager.get_text_width(self.current_time, time_font)
+                # Use the same method as old clock - try font.getlength() or fallback to get_text_width
+                try:
+                    # Try to use font.getlength() like old clock did
+                    if hasattr(self.display_manager, 'font'):
+                        time_width = self.display_manager.font.getlength(self.current_time)
+                    else:
+                        time_width = self.display_manager.get_text_width(self.current_time, self.display_manager.regular_font)
+                except:
+                    time_width = self.display_manager.get_text_width(self.current_time, self.display_manager.regular_font)
+                
                 ampm_x = (width + time_width) // 2 + 4
                 self.display_manager.draw_text(
                     self.current_ampm,
                     x=ampm_x,
                     y=4,  # Align with time
                     color=self.ampm_color,
-                    font=time_font  # Use same font as time
+                    small_font=False  # Use regular font to match time
                 )
 
             # Display date (at bottom, if enabled) - match old clock layout
