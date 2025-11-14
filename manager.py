@@ -227,19 +227,30 @@ class SimpleClock(BasePlugin):
             width = self.display_manager.width
             height = self.display_manager.height
 
-            # Center the clock vertically instead of anchoring to top/bottom
+            # Center the clock as a cohesive block in the middle of the screen
             # Use a larger, clearer font for the time
             try:
                 from PIL import ImageFont
-                # Use size 9 or 10 for clearer, less chunky appearance
+                # Use size 9 for clearer, less chunky appearance
                 time_font = ImageFont.truetype("assets/fonts/PressStart2P-Regular.ttf", 9)
             except:
                 # Fallback to regular font if larger font fails
                 time_font = self.display_manager.regular_font
             
-            # Calculate centered vertical positions
-            # Time should be in the upper-middle area
-            time_y = height // 2 - 8  # Center minus offset for date below
+            # Calculate centered vertical positions - cluster everything together in center
+            # Get font heights for proper spacing
+            time_font_height = 9  # Approximate height for size 9 font
+            date_font_height = 8  # Small font height
+            
+            # Calculate total height needed for all elements
+            if self.show_date and self.date_format == "OLD_CLOCK" and hasattr(self, 'current_weekday'):
+                total_height = time_font_height + 2 + date_font_height + 2 + date_font_height  # time + gap + weekday + gap + date
+            else:
+                total_height = time_font_height + 2 + date_font_height  # time + gap + date
+            
+            # Start from center and work up/down
+            start_y = (height - total_height) // 2
+            time_y = start_y
             
             # Draw time (centered horizontally and vertically)
             self.display_manager.draw_text(
@@ -266,9 +277,9 @@ class SimpleClock(BasePlugin):
             if self.show_date and hasattr(self, 'current_date'):
                 # Weekday on first line (if using old clock format)
                 if self.date_format == "OLD_CLOCK" and hasattr(self, 'current_weekday'):
-                    # Position date below time, centered
-                    date_y1 = time_y + 12  # First line of date
-                    date_y2 = time_y + 21  # Second line of date
+                    # Position date below time, with tight spacing
+                    date_y1 = time_y + time_font_height + 2  # First line of date (weekday)
+                    date_y2 = date_y1 + date_font_height + 2  # Second line of date (month/day)
                     
                     self.display_manager.draw_text(
                         self.current_weekday,
@@ -285,7 +296,7 @@ class SimpleClock(BasePlugin):
                     )
                 else:
                     # Other date formats: single line centered below time
-                    date_y = time_y + 12
+                    date_y = time_y + time_font_height + 2
                     self.display_manager.draw_text(
                         self.current_date,
                         y=date_y,
