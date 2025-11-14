@@ -228,25 +228,34 @@ class SimpleClock(BasePlugin):
             height = self.display_manager.height
 
             # Match old clock layout: time at top, date at bottom
-            # Time at y=4 (near top, centered)
+            # Time at y=4 (near top, centered) - use larger font for time
+            try:
+                from PIL import ImageFont
+                # Use larger font for time (size 10) to make it more prominent
+                time_font = ImageFont.truetype("assets/fonts/PressStart2P-Regular.ttf", 10)
+            except:
+                # Fallback to regular font if larger font fails
+                time_font = self.display_manager.regular_font
+            
             self.display_manager.draw_text(
                 self.current_time,
                 y=4,
                 color=self.time_color,
-                small_font=True
+                font=time_font  # Use larger font for time
             )
 
             # Display AM/PM indicator (12h format only) - positioned next to time
             if self.time_format == "12h" and hasattr(self, 'current_ampm'):
                 # Calculate AM/PM position: to the right of centered time
-                time_width = self.display_manager.get_text_width(self.current_time, self.display_manager.small_font)
+                # Use same font as time for proper alignment
+                time_width = self.display_manager.get_text_width(self.current_time, time_font)
                 ampm_x = (width + time_width) // 2 + 4
                 self.display_manager.draw_text(
                     self.current_ampm,
                     x=ampm_x,
                     y=4,  # Align with time
                     color=self.ampm_color,
-                    small_font=True
+                    font=time_font  # Use same font as time
                 )
 
             # Display date (at bottom, if enabled) - match old clock layout
