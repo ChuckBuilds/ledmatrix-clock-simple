@@ -92,6 +92,24 @@
       "type": "integer",
       "default": 0,
       "description": "Y position for clock display"
+    },
+    "display_style": {
+      "type": "string",
+      "enum": ["standard", "seven_segment"],
+      "default": "standard",
+      "description": "Display style: 'standard' for text font, 'seven_segment' for digital segments"
+    },
+    "segment_color": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "default": [255, 255, 255],
+      "description": "RGB color for seven-segment display segments"
     }
   },
   "required": ["enabled"]

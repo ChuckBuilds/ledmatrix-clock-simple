@@ -33,6 +33,8 @@ class SimpleClock(BasePlugin):
         date_color (list): RGB color for date [R, G, B] (default: [255, 128, 64])
         ampm_color (list): RGB color for AM/PM [R, G, B] (default: [255, 255, 128])
         position (dict): X,Y position for display (default: 0,0)
+        display_style (str): 'standard' for text, 'seven_segment' for digital
+        segment_color (list): RGB color for seven-segment display segments
     """
 
     def __init__(self, plugin_id: str, config: Dict[str, Any],
@@ -47,15 +49,18 @@ class SimpleClock(BasePlugin):
         self.show_seconds = config.get('show_seconds', False)
         self.show_date = config.get('show_date', True)
         self.date_format = config.get('date_format', 'OLD_CLOCK')
+        self.display_style = config.get('display_style', 'standard')
 
         # Colors - convert to integers in case they come from JSON as strings
         time_color_raw = config.get('time_color', [255, 255, 255])
         date_color_raw = config.get('date_color', [255, 128, 64])
         ampm_color_raw = config.get('ampm_color', [255, 255, 128])
+        segment_color_raw = config.get('segment_color', [255, 255, 255])
         
         self.time_color = tuple(int(c) for c in time_color_raw)
         self.date_color = tuple(int(c) for c in date_color_raw)
         self.ampm_color = tuple(int(c) for c in ampm_color_raw)
+        self.segment_color = tuple(int(c) for c in segment_color_raw)
 
         # Position - use flattened keys
         self.pos_x = config.get('position_x', 0)
@@ -157,6 +162,9 @@ class SimpleClock(BasePlugin):
             else:
                 # Use local system time (no timezone conversion)
                 local_time = datetime.now()
+            
+            # Store local_time for date formatting access
+            self.current_dt = local_time
 
             if self.time_format == "12h":
                 new_time, new_ampm = self._format_time_12h(local_time)
@@ -185,6 +193,199 @@ class SimpleClock(BasePlugin):
         except Exception as e:
             self.logger.error(f"Error updating clock: {e}")
 
+    # --- Seven-Segment Helper Methods ---
+
+    def _draw_segment(self, x: int, y: int, width: int, height: int, color: Tuple[int, int, int]) -> None:
+        """Draw a single segment."""
+        # Use rectangle for segments
+        self.display_manager.draw.rectangle([x, y, x + width - 1, y + height - 1], fill=color)
+
+    def _get_segment_patterns(self) -> Dict[str, list]:
+        """
+        Get segment patterns for digits and letters.
+        Segments:
+             a
+           f   b
+             g
+           e   c
+             d
+        """
+        return {
+            '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+            '1': ['b', 'c'],
+            '2': ['a', 'b', 'g', 'e', 'd'],
+            '3': ['a', 'b', 'g', 'c', 'd'],
+            '4': ['f', 'g', 'b', 'c'],
+            '5': ['a', 'f', 'g', 'c', 'd'],
+            '6': ['a', 'f', 'g', 'c', 'd', 'e'],
+            '7': ['a', 'b', 'c'],
+            '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+            '9': ['a', 'b', 'c', 'f', 'g'],
+            'A': ['a', 'b', 'c', 'e', 'f', 'g'],
+            'P': ['a', 'b', 'e', 'f', 'g'],
+            'M': ['a', 'b', 'c', 'e', 'f'], # Approximation for M
+        }
+
+    def _calculate_segment_dimensions(self) -> Dict[str, int]:
+        """Calculate dimensions based on display size."""
+        width = self.display_manager.width
+        
+        # Scale thickness based on width, but keep it reasonable
+        thickness = max(1, min(3, width // 32))
+        
+        # Digit dimensions
+        # For 64px width, we want digits to fit comfortably.
+        # Approx 4 digits + colon + spacing
+        digit_width = width // 6 
+        digit_height = int(digit_width * 1.6) # Keep aspect ratio
+        
+        # Ensure minimum height on small displays
+        if digit_height < 10:
+            digit_height = 10
+            digit_width = int(digit_height / 1.6)
+
+        # Calculate segment lengths based on thickness
+        h_seg_len = digit_width - (2 * thickness)
+        v_seg_len = (digit_height - (3 * thickness)) // 2
+
+        return {
+            'thickness': thickness,
+            'width': digit_width,
+            'height': digit_height,
+            'h_len': h_seg_len,
+            'v_len': v_seg_len,
+            'spacing': thickness + 1
+        }
+
+    def _draw_seven_segment_digit(self, char: str, x: int, y: int, color: Tuple[int, int, int]) -> None:
+        """Render a single seven-segment digit."""
+        dims = self._calculate_segment_dimensions()
+        t = dims['thickness']
+        w = dims['width']
+        h_len = dims['h_len']
+        v_len = dims['v_len']
+        
+        patterns = self._get_segment_patterns()
+        segments = patterns.get(char, [])
+        
+        # Coordinates for segments
+        # a: top
+        if 'a' in segments:
+            self._draw_segment(x + t, y, h_len, t, color)
+        # b: top-right
+        if 'b' in segments:
+            self._draw_segment(x + w - t, y + t, t, v_len, color)
+        # c: bottom-right
+        if 'c' in segments:
+            self._draw_segment(x + w - t, y + 2*t + v_len, t, v_len, color)
+        # d: bottom
+        if 'd' in segments:
+            self._draw_segment(x + t, y + 2*v_len + 2*t, h_len, t, color)
+        # e: bottom-left
+        if 'e' in segments:
+            self._draw_segment(x, y + 2*t + v_len, t, v_len, color)
+        # f: top-left
+        if 'f' in segments:
+            self._draw_segment(x, y + t, t, v_len, color)
+        # g: middle
+        if 'g' in segments:
+            self._draw_segment(x + t, y + t + v_len, h_len, t, color)
+
+    def _draw_seven_segment_colon(self, x: int, y: int, color: Tuple[int, int, int]) -> int:
+        """Draw colon separator."""
+        dims = self._calculate_segment_dimensions()
+        t = dims['thickness']
+        h = dims['height']
+        
+        # Draw two dots
+        dot_size = t
+        
+        # Top dot
+        self._draw_segment(x, y + h//3, dot_size, dot_size, color)
+        # Bottom dot
+        self._draw_segment(x, y + 2*h//3, dot_size, dot_size, color)
+        
+        return dot_size + 2 # Return width used
+
+    def _draw_seven_segment_time(self, time_str: str, ampm_str: str, start_x: int, start_y: int, color: Tuple[int, int, int]) -> int:
+        """Render complete time string in seven-segment."""
+        dims = self._calculate_segment_dimensions()
+        char_width = dims['width']
+        spacing = dims['spacing']
+        
+        current_x = start_x
+        
+        for char in time_str:
+            if char == ':':
+                colon_width = self._draw_seven_segment_colon(current_x, start_y, color)
+                current_x += colon_width + spacing
+            elif char.isdigit():
+                self._draw_seven_segment_digit(char, current_x, start_y, color)
+                current_x += char_width + spacing
+                
+        return current_x - start_x # Total width
+
+    def _format_date_for_seven_segment(self, dt: datetime) -> str:
+        """Format date as 'Wed Nov 19'."""
+        # %a = Abbreviated weekday (Wed)
+        # %b = Abbreviated month (Nov)
+        # %d = Day of month (19)
+        # Use %d instead of %-d for Windows compatibility, strip leading zero manually
+        day = dt.strftime("%d").lstrip("0")
+        return f"{dt.strftime('%a %b')} {day}"
+
+    def _display_seven_segment(self, force_clear: bool = False) -> None:
+        """Main seven-segment display method."""
+        # Clear display
+        self.display_manager.clear()
+        
+        dims = self._calculate_segment_dimensions()
+        digit_width = dims['width']
+        spacing = dims['spacing']
+        total_height = dims['height']
+        
+        # Calculate total width of time string to center it
+        # Digits + colon + spacing
+        time_str = getattr(self, 'current_time', '00:00')
+        ampm_str = getattr(self, 'current_ampm', '')
+        
+        num_digits = sum(c.isdigit() for c in time_str)
+        num_colons = time_str.count(':')
+        
+        # Estimate width
+        colon_width = dims['thickness'] + 2
+        estimated_width = (num_digits * digit_width) + (num_digits * spacing) + (num_colons * (colon_width + spacing))
+        
+        # Calculate start X to center
+        start_x = (self.display_manager.width - estimated_width) // 2
+        start_y = 4 # Top margin
+        
+        # Draw time
+        self._draw_seven_segment_time(time_str, ampm_str, start_x, start_y, self.segment_color)
+        
+        # Draw date below
+        if self.show_date and hasattr(self, 'current_dt'):
+            date_str = self._format_date_for_seven_segment(self.current_dt)
+            
+            # Center date text
+            # Standard font size is approx 8px height
+            date_y = start_y + total_height + 4 
+            
+            # Check if it fits on screen vertically
+            if date_y + 8 <= self.display_manager.height:
+                self.display_manager.draw_text(
+                    date_str,
+                    y=date_y,
+                    color=self.date_color,
+                    small_font=True,
+                    centered=True
+                )
+        
+        self.display_manager.update_display()
+        
+        # Update last displayed tracking (reuse standard tracking vars for simplicity)
+        self.last_time_str = time_str
+
     def display(self, force_clear: bool = False) -> None:
         """
         Display the clock.
@@ -201,6 +402,15 @@ class SimpleClock(BasePlugin):
                 # Update time to check if it has changed
                 self.update()
             
+            # Routing based on display style
+            if self.display_style == 'seven_segment':
+                # Check for changes - simplified check for now
+                current_time_str = getattr(self, 'current_time', '')
+                if not force_clear and current_time_str == self.last_time_str:
+                    return
+                self._display_seven_segment(force_clear)
+                return
+
             # Check if time/date has changed since last display
             current_time_str = getattr(self, 'current_time', '')
             current_ampm_str = getattr(self, 'current_ampm', '') if self.time_format == "12h" else ''
@@ -321,6 +531,11 @@ class SimpleClock(BasePlugin):
         if not super().validate_config():
             return False
 
+        # Validate display style
+        if self.display_style not in ["standard", "seven_segment"]:
+            self.logger.error(f"Invalid display_style: {self.display_style}")
+            return False
+
         # Validate timezone
         if pytz is not None:
             try:
@@ -345,7 +560,8 @@ class SimpleClock(BasePlugin):
         for color_name, color_value in [
             ("time_color", self.time_color),
             ("date_color", self.date_color),
-            ("ampm_color", self.ampm_color)
+            ("ampm_color", self.ampm_color),
+            ("segment_color", self.segment_color)
         ]:
             if not isinstance(color_value, tuple) or len(color_value) != 3:
                 self.logger.error(f"Invalid {color_name}: must be RGB tuple")
@@ -371,6 +587,7 @@ class SimpleClock(BasePlugin):
             'time_format': self.time_format,
             'show_seconds': self.show_seconds,
             'show_date': self.show_date,
-            'date_format': self.date_format
+            'date_format': self.date_format,
+            'display_style': self.display_style
         })
         return info
