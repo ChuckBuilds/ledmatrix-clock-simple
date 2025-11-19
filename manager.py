@@ -46,7 +46,7 @@ class SimpleClock(BasePlugin):
         self.time_format = config.get('time_format', '12h')
         self.show_seconds = config.get('show_seconds', False)
         self.show_date = config.get('show_date', True)
-        self.date_format = config.get('date_format', 'MM/DD/YYYY')
+        self.date_format = config.get('date_format', 'OLD_CLOCK')
 
         # Colors - convert to integers in case they come from JSON as strings
         time_color_raw = config.get('time_color', [255, 255, 255])
@@ -211,95 +211,75 @@ class SimpleClock(BasePlugin):
             current_display_str = f"{current_time_str} {current_ampm_str}".strip()
             last_display_str = f"{self.last_time_str} {getattr(self, 'last_ampm_str', '')}".strip() if self.last_time_str else ''
             
-            # Only redraw if time/date changed or force_clear is True
-            if not force_clear:
-                if (current_display_str == last_display_str and 
-                    current_date_str == self.last_date_str and
-                    current_weekday_str == getattr(self, 'last_weekday_str', '')):
-                    # Time hasn't changed, skip redraw
-                    return
+            # Determine if we need to redraw
+            needs_redraw = force_clear or (
+                current_display_str != last_display_str or
+                current_date_str != self.last_date_str or
+                current_weekday_str != getattr(self, 'last_weekday_str', '')
+            )
             
-            # Time has changed or force_clear is True, proceed with display
-            if force_clear:
-                self.display_manager.clear()
+            if not needs_redraw:
+                return
+
+            # Clear the display unconditionally if we are drawing
+            self.display_manager.clear()
 
             # Get display dimensions
             width = self.display_manager.width
             height = self.display_manager.height
-
-            # Center the clock as a cohesive block in the middle of the screen
-            # Use a larger, clearer font for the time
-            try:
-                from PIL import ImageFont
-                # Use size 9 for clearer, less chunky appearance
-                time_font = ImageFont.truetype("assets/fonts/PressStart2P-Regular.ttf", 9)
-            except:
-                # Fallback to regular font if larger font fails
-                time_font = self.display_manager.regular_font
             
-            # Calculate centered vertical positions - cluster everything together in center
-            # Get font heights for proper spacing
-            time_font_height = 9  # Approximate height for size 9 font
-            date_font_height = 8  # Small font height
+            # Layout logic from old_managers/clock.py
             
-            # Calculate total height needed for all elements
-            if self.show_date and self.date_format == "OLD_CLOCK" and hasattr(self, 'current_weekday'):
-                total_height = time_font_height + 2 + date_font_height + 2 + date_font_height  # time + gap + weekday + gap + date
-            else:
-                total_height = time_font_height + 2 + date_font_height  # time + gap + date
-            
-            # Start from center and work up/down
-            start_y = (height - total_height) // 2
-            time_y = start_y
-            
-            # Draw time (centered horizontally and vertically)
+            # Draw time (large, centered, near top)
             self.display_manager.draw_text(
                 self.current_time,
-                y=time_y,
+                y=4,  # Move up slightly to make room for two lines of date
                 color=self.time_color,
-                font=time_font  # Use larger, clearer font
+                small_font=True
             )
 
             # Display AM/PM indicator (12h format only) - positioned next to time
             if self.time_format == "12h" and hasattr(self, 'current_ampm'):
                 # Calculate AM/PM position: to the right of centered time
-                time_width = self.display_manager.get_text_width(self.current_time, time_font)
+                try:
+                    # Try to use font from display_manager if available
+                    time_width = self.display_manager.font.getlength(self.current_time)
+                except (AttributeError, TypeError):
+                    # Fallback calculation
+                    time_width = len(self.current_time) * 6  # Approximate width
+                
                 ampm_x = (width + time_width) // 2 + 4
                 self.display_manager.draw_text(
                     self.current_ampm,
                     x=ampm_x,
-                    y=time_y,  # Align with time
+                    y=4,  # Align with time
                     color=self.ampm_color,
-                    font=time_font  # Use same font as time
+                    small_font=True
                 )
 
-            # Display date (below time, centered) - use smaller font for contrast
+            # Display date
             if self.show_date and hasattr(self, 'current_date'):
-                # Weekday on first line (if using old clock format)
                 if self.date_format == "OLD_CLOCK" and hasattr(self, 'current_weekday'):
-                    # Position date below time, with tight spacing
-                    date_y1 = time_y + time_font_height + 2  # First line of date (weekday)
-                    date_y2 = date_y1 + date_font_height + 2  # Second line of date (month/day)
-                    
+                    # Weekday on first line
                     self.display_manager.draw_text(
                         self.current_weekday,
-                        y=date_y1,  # First line of date
+                        y=height - 18,  # First line of date
                         color=self.date_color,
                         small_font=True
                     )
                     # Month and day on second line
                     self.display_manager.draw_text(
                         self.current_date,
-                        y=date_y2,  # Second line of date
+                        y=height - 9,  # Second line of date
                         color=self.date_color,
                         small_font=True
                     )
                 else:
                     # Other date formats: single line centered below time
-                    date_y = time_y + time_font_height + 2
+                    # Use approximate position similar to old clock but just one line
                     self.display_manager.draw_text(
                         self.current_date,
-                        y=date_y,
+                        y=height - 9,
                         color=self.date_color,
                         small_font=True
                     )
