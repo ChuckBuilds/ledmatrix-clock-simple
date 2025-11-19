@@ -52,15 +52,23 @@ class SimpleClock(BasePlugin):
         self.display_style = config.get('display_style', 'standard')
 
         # Colors - convert to integers in case they come from JSON as strings
-        time_color_raw = config.get('time_color', [255, 255, 255])
-        date_color_raw = config.get('date_color', [255, 128, 64])
-        ampm_color_raw = config.get('ampm_color', [255, 255, 128])
-        segment_color_raw = config.get('segment_color', [255, 255, 255])
-        
-        self.time_color = tuple(int(c) for c in time_color_raw)
-        self.date_color = tuple(int(c) for c in date_color_raw)
-        self.ampm_color = tuple(int(c) for c in ampm_color_raw)
-        self.segment_color = tuple(int(c) for c in segment_color_raw)
+        def _parse_color(name, default):
+            raw = config.get(name, default)
+            try:
+                return tuple(int(c) for c in raw)
+            except (ValueError, TypeError):
+                # If parsing fails, return the raw value (as tuple if possible, else raw)
+                # This allows validate_config to detect and report the error properly
+                # instead of crashing in __init__
+                try:
+                    return tuple(raw)
+                except TypeError:
+                    return raw
+
+        self.time_color = _parse_color('time_color', [255, 255, 255])
+        self.date_color = _parse_color('date_color', [255, 128, 64])
+        self.ampm_color = _parse_color('ampm_color', [255, 255, 128])
+        self.segment_color = _parse_color('segment_color', [255, 255, 255])
 
         # Position - use flattened keys
         self.pos_x = config.get('position_x', 0)
