@@ -1,5 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Clock Simple Plugin Configuration",
+  "description": "Configuration schema for the Clock Simple plugin - displays time and date on the LED matrix",
   "type": "object",
   "properties": {
     "enabled": {
@@ -7,23 +9,65 @@
       "default": false,
       "description": "Enable or disable the clock plugin"
     },
-    "timezone": {
-      "type": "string",
-      "default": "UTC",
-      "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London')"
+    "display_duration": {
+      "type": "number",
+      "default": 15,
+      "minimum": 1,
+      "maximum": 300,
+      "description": "How long to display the clock in seconds"
     },
-    "time_format": {
-      "type": "string",
-      "enum": ["12h", "24h"],
-      "default": "12h",
-      "description": "Time format: '12h' for 12-hour format with AM/PM, '24h' for 24-hour format"
+    "live_priority": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable live priority takeover when plugin has live content"
+    },
+    "high_performance_transitions": {
+      "type": "boolean",
+      "default": false,
+      "description": "Use high-performance transitions (120 FPS) instead of standard (30 FPS)"
     },
     "update_interval": {
       "type": "integer",
       "default": 1,
       "minimum": 1,
       "maximum": 60,
-      "description": "Update interval in seconds"
+      "description": "How often to update the clock display in seconds"
+    },
+    "transition": {
+      "type": "object",
+      "description": "Transition configuration for this plugin",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["redraw", "fade", "slide", "wipe", "dissolve", "pixelate"],
+          "default": "redraw",
+          "description": "Type of transition to use"
+        },
+        "speed": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Transition speed (1=slow, 10=fast)"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable transitions"
+        }
+      },
+      "additionalProperties": false
+    },
+    "timezone": {
+      "type": "string",
+      "default": "UTC",
+      "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London'). Use IANA timezone database names."
+    },
+    "time_format": {
+      "type": "string",
+      "enum": ["12h", "24h"],
+      "default": "12h",
+      "description": "Time format: '12h' for 12-hour format with AM/PM, '24h' for 24-hour format"
     },
     "show_seconds": {
       "type": "boolean",
@@ -39,7 +83,7 @@
       "type": "string",
       "enum": ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "OLD_CLOCK"],
       "default": "OLD_CLOCK",
-      "description": "Date format to display. OLD_CLOCK matches the original clock layout with weekday and month/day with ordinal suffix"
+      "description": "Date format to display. OLD_CLOCK matches the original clock layout with weekday and month/day with ordinal suffix (e.g., 'Monday, January 1st')"
     },
     "time_color": {
       "type": "array",
@@ -51,7 +95,7 @@
       "minItems": 3,
       "maxItems": 3,
       "default": [255, 255, 255],
-      "description": "RGB color for the time display"
+      "description": "RGB color for the time display [R, G, B]"
     },
     "date_color": {
       "type": "array",
@@ -63,7 +107,7 @@
       "minItems": 3,
       "maxItems": 3,
       "default": [255, 128, 64],
-      "description": "RGB color for the date display"
+      "description": "RGB color for the date display [R, G, B]"
     },
     "ampm_color": {
       "type": "array",
@@ -75,29 +119,23 @@
       "minItems": 3,
       "maxItems": 3,
       "default": [255, 255, 128],
-      "description": "RGB color for AM/PM indicator"
-    },
-    "display_duration": {
-      "type": "number",
-      "default": 15,
-      "minimum": 1,
-      "description": "How long to display the clock in seconds"
+      "description": "RGB color for AM/PM indicator [R, G, B]"
     },
     "position_x": {
       "type": "integer",
       "default": 0,
-      "description": "X position for clock display"
+      "description": "X position offset for clock display (pixels)"
     },
     "position_y": {
       "type": "integer",
       "default": 0,
-      "description": "Y position for clock display"
+      "description": "Y position offset for clock display (pixels)"
     },
     "display_style": {
       "type": "string",
       "enum": ["standard", "seven_segment"],
       "default": "standard",
-      "description": "Display style: 'standard' for text font, 'seven_segment' for digital segments"
+      "description": "Display style: 'standard' uses text font, 'seven_segment' uses digital segment display"
     },
     "segment_color": {
       "type": "array",
@@ -109,8 +147,9 @@
       "minItems": 3,
       "maxItems": 3,
       "default": [255, 255, 255],
-      "description": "RGB color for seven-segment display segments"
+      "description": "RGB color for seven-segment display segments [R, G, B]"
     }
   },
-  "required": ["enabled"]
+  "required": ["enabled"],
+  "additionalProperties": false
 }
