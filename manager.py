@@ -284,6 +284,18 @@ class SimpleClock(BasePlugin):
                 current_weekday_str != getattr(self, 'last_weekday_str', '')
             )
             
+            # Get display dimensions early (needed for both partial and full updates)
+            width = self.display_manager.width
+            height = self.display_manager.height
+            
+            # Get font height for dynamic spacing calculations
+            font_height = self.display_manager.get_font_height(self.display_manager.small_font)
+            
+            # Calculate dynamic positions based on display dimensions
+            # Time position: Small fixed offset (4px) plus small percentage for larger displays
+            # This keeps time near top on small displays, scales slightly on larger ones
+            time_y = max(2, min(4 + int(height * 0.02), int(height * 0.1)))
+            
             # If only seconds changed, do partial update
             if only_seconds_changed and not force_clear:
                 self._update_seconds_only(current_time_str, time_y, width)
@@ -297,18 +309,6 @@ class SimpleClock(BasePlugin):
 
             # Clear the display for full redraw
             self.display_manager.clear()
-
-            # Get display dimensions
-            width = self.display_manager.width
-            height = self.display_manager.height
-            
-            # Get font height for dynamic spacing calculations
-            font_height = self.display_manager.get_font_height(self.display_manager.small_font)
-            
-            # Calculate dynamic positions based on display dimensions
-            # Time position: Small fixed offset (4px) plus small percentage for larger displays
-            # This keeps time near top on small displays, scales slightly on larger ones
-            time_y = max(2, min(4 + int(height * 0.02), int(height * 0.1)))
             
             # Display time and AM/PM based on alignment toggle
             if self.time_format == "12h" and hasattr(self, 'current_ampm') and self.center_time_with_ampm:
