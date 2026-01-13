@@ -24,15 +24,20 @@
       "description": "How often to update the clock display in seconds"
     },
     "timezone": {
-      "type": "string",
-      "default": "UTC",
-      "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London'). Use IANA timezone database names. If not specified, inherits from LEDMatrix global timezone setting."
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London'). Use IANA timezone database names. If not specified or set to null, inherits from LEDMatrix global timezone setting."
     },
     "time_format": {
       "type": "string",
       "enum": ["12h", "24h"],
       "default": "12h",
       "description": "Time format: '12h' for 12-hour format with AM/PM, '24h' for 24-hour format"
+    },
+    "center_time_with_ampm": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, centers the time and AM/PM together as one block. When false (default), centers the time first, then adds AM/PM to the right."
     },
     "show_seconds": {
       "type": "boolean",

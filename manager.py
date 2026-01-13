@@ -43,10 +43,18 @@ class SimpleClock(BasePlugin):
 
         # Clock-specific configuration
         # Use plugin-specific timezone, or fall back to global timezone, or default to UTC
-        self.timezone_str = config.get('timezone') or self._get_global_timezone() or 'UTC'
+        # Handle None/null values from config schema
+        plugin_timezone = config.get('timezone')
+        if plugin_timezone is None or plugin_timezone == '':
+            # No plugin-specific timezone set, inherit from global
+            self.timezone_str = self._get_global_timezone() or 'UTC'
+        else:
+            # Use plugin-specific timezone
+            self.timezone_str = plugin_timezone
         self.time_format = config.get('time_format', '12h')
         self.show_seconds = config.get('show_seconds', False)
         self.show_date = config.get('show_date', True)
+        self.center_time_with_ampm = config.get('center_time_with_ampm', False)
         self.date_format = config.get('date_format', 'OLD_CLOCK')
 
         # Colors from nested customization, with fallback to defaults
@@ -259,33 +267,76 @@ class SimpleClock(BasePlugin):
             # This keeps time near top on small displays, scales slightly on larger ones
             time_y = max(2, min(4 + int(height * 0.02), int(height * 0.1)))
             
-            # Draw time (large, centered, near top)
-            self.display_manager.draw_text(
-                self.current_time,
-                y=time_y,
-                color=self.time_color,
-                small_font=True
-            )
-
-            # Display AM/PM indicator (12h format only) - positioned next to time
-            if self.time_format == "12h" and hasattr(self, 'current_ampm'):
-                # Calculate AM/PM position: to the right of centered time
-                # Use the same font that's used for drawing (small_font)
+            # Display time and AM/PM based on alignment toggle
+            if self.time_format == "12h" and hasattr(self, 'current_ampm') and self.center_time_with_ampm:
+                # Center time and AM/PM together as one block
+                # Calculate widths of each component
                 time_width = self.display_manager.get_text_width(
-                    self.current_time, 
+                    self.current_time,
+                    self.display_manager.small_font
+                )
+                space_width = self.display_manager.get_text_width(
+                    " ",
+                    self.display_manager.small_font
+                )
+                ampm_width = self.display_manager.get_text_width(
+                    self.current_ampm,
                     self.display_manager.small_font
                 )
                 
-                # Spacing between time and AM/PM: ~2.5% of width, minimum 2px
-                ampm_spacing = max(2, int(width * 0.025))
-                ampm_x = (width + time_width) // 2 + ampm_spacing
+                # Total width of "Time AM/PM" block
+                total_width = time_width + space_width + ampm_width
+                
+                # Calculate x position to center the entire "Time AM/PM" block
+                time_x = (width - total_width) // 2
+                
+                # Draw time at calculated position
+                self.display_manager.draw_text(
+                    self.current_time,
+                    x=time_x,
+                    y=time_y,
+                    color=self.time_color,
+                    small_font=True
+                )
+                
+                # Draw AM/PM right after time with proper spacing
+                ampm_x = time_x + time_width + space_width
                 self.display_manager.draw_text(
                     self.current_ampm,
                     x=ampm_x,
-                    y=time_y,  # Align with time
+                    y=time_y,
                     color=self.ampm_color,
                     small_font=True
                 )
+            else:
+                # Default behavior: center time first, then add AM/PM to the right
+                # Draw time (large, centered, near top)
+                self.display_manager.draw_text(
+                    self.current_time,
+                    y=time_y,
+                    color=self.time_color,
+                    small_font=True
+                )
+
+                # Display AM/PM indicator (12h format only) - positioned next to time
+                if self.time_format == "12h" and hasattr(self, 'current_ampm'):
+                    # Calculate AM/PM position: to the right of centered time
+                    # Use the same font that's used for drawing (small_font)
+                    time_width = self.display_manager.get_text_width(
+                        self.current_time, 
+                        self.display_manager.small_font
+                    )
+                    
+                    # Spacing between time and AM/PM: ~2.5% of width, minimum 2px
+                    ampm_spacing = max(2, int(width * 0.025))
+                    ampm_x = (width + time_width) // 2 + ampm_spacing
+                    self.display_manager.draw_text(
+                        self.current_ampm,
+                        x=ampm_x,
+                        y=time_y,  # Align with time
+                        color=self.ampm_color,
+                        small_font=True
+                    )
 
             # Display date
             if self.show_date and hasattr(self, 'current_date'):
