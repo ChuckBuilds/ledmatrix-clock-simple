@@ -16,11 +16,6 @@
       "maximum": 300,
       "description": "How long to display the clock in seconds"
     },
-    "live_priority": {
-      "type": "boolean",
-      "default": false,
-      "description": "Enable live priority takeover when plugin has live content"
-    },
     "update_interval": {
       "type": "integer",
       "default": 1,
@@ -31,7 +26,7 @@
     "timezone": {
       "type": "string",
       "default": "UTC",
-      "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London'). Use IANA timezone database names."
+      "description": "Timezone for the clock display (e.g., 'America/New_York', 'Europe/London'). Use IANA timezone database names. If not specified, inherits from LEDMatrix global timezone setting."
     },
     "time_format": {
       "type": "string",
@@ -55,42 +50,6 @@
       "default": "OLD_CLOCK",
       "description": "Date format to display. OLD_CLOCK matches the original clock layout with weekday and month/day with ordinal suffix (e.g., 'Monday, January 1st')"
     },
-    "time_color": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 255
-      },
-      "minItems": 3,
-      "maxItems": 3,
-      "default": [255, 255, 255],
-      "description": "RGB color for the time display [R, G, B]"
-    },
-    "date_color": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 255
-      },
-      "minItems": 3,
-      "maxItems": 3,
-      "default": [255, 128, 64],
-      "description": "RGB color for the date display [R, G, B]"
-    },
-    "ampm_color": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 255
-      },
-      "minItems": 3,
-      "maxItems": 3,
-      "default": [255, 255, 128],
-      "description": "RGB color for AM/PM indicator [R, G, B]"
-    },
     "position_x": {
       "type": "integer",
       "default": 0,
@@ -100,24 +59,6 @@
       "type": "integer",
       "default": 0,
       "description": "Y position offset for clock display (pixels)"
-    },
-    "display_style": {
-      "type": "string",
-      "enum": ["standard", "seven_segment"],
-      "default": "standard",
-      "description": "Display style: 'standard' uses text font, 'seven_segment' uses digital segment display"
-    },
-    "segment_color": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 255
-      },
-      "minItems": 3,
-      "maxItems": 3,
-      "default": [255, 255, 255],
-      "description": "RGB color for seven-segment display segments [R, G, B]"
     },
     "customization": {
       "type": "object",
